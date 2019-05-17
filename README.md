@@ -1,4 +1,4 @@
-# GetInITCodingChallenge
-C++ Code for the get in {IT} coding challenge
+# CodingChallenge
+C++ Code for the coding challenge
 
 Boost libraries needed.
