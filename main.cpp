@@ -82,7 +82,7 @@ int main() {
     // Check if both nodes have been found
     if(!earth.first || !destination.first) {
         std::cerr << std::boolalpha 
-            << "In dieser Galaxie gibt es einen oder mehreren der gesuchten Planten nicht. Erde[" 
+            << "In dieser Galaxie gibt es einen oder mehrere der gesuchten Planten nicht. Erde[" 
             << earth.first << "], b3-r7-r4nd7[" 
             << destination.first << "]" 
             << std::endl;
