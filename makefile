@@ -1,8 +1,8 @@
-GetInITCodingChallenge: main.o
-	g++ -std=c++17 -o GetInITCodingChallenge main.o 
+CodingChallenge: main.o
+	g++ -std=c++17 -Wall -O2 -o CodingChallenge main.o 
 
 main.o: main.cpp
-	g++ -std=c++17 -c main.cpp
+	g++ -std=c++17 -Wall -O2 -c main.cpp
 
 clean:
-	rm *.o GetInITCodingChallenge
+	rm *.o CodingChallenge
