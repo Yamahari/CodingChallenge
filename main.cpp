@@ -14,50 +14,95 @@ using VertexDescriptor = boost::graph_traits<UndirectedGraph>::vertex_descriptor
 using EdgeDescriptor = boost::graph_traits<UndirectedGraph>::edge_descriptor;
 
 int main() {
+    // Parse the given .json 
     pt::ptree p;
-    pt::json_parser::read_json("generatedGraph.json", p);
 
-    auto& nodes = p.get_child("nodes");
-    auto& edges = p.get_child("edges");
+    try {
+        pt::json_parser::read_json("generatedGraph.json", p);
+    } catch(const pt::json_parser_error& e) {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 
-    std::ptrdiff_t d0;
-    std::ptrdiff_t d1;
+    // Get nodes and edges
+    pt::ptree* nodes = nullptr;
+    pt::ptree* edges = nullptr;
 
-    // Find the start node "Erde" and the end node "b3-r7-r4nd7"
-    for(auto node = nodes.begin(); node != nodes.end(); ++node) {
-        if(node->second.get_child("label").get_value<std::string>() == "Erde") {
-            d0 = std::distance(nodes.begin(), node);
-        } else if(node->second.get_child("label").get_value<std::string>() == "b3-r7-r4nd7") {
-            d1 = std::distance(nodes.begin(), node);
-        }
+    try {
+        nodes = &p.get_child("nodes");
+        edges = &p.get_child("edges");
+    } catch(const pt::ptree_bad_path& e) {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
     }
 
     // Initialize undirected graph
     UndirectedGraph g;
-    for(auto& edge : edges) {
+    for(auto& edge : *edges) {
+        try {
         boost::add_edge(
-            edge.second.get_child("source").get_value<int>(),
-            edge.second.get_child("target").get_value<int>(),
+            edge.second.get_child("source").get_value<VertexDescriptor>(),
+            edge.second.get_child("target").get_value<VertexDescriptor>(),
             edge.second.get_child("cost").get_value<double>(), 
             g);
+        } catch(const pt::ptree_error& e) {
+            std::cerr << e.what() << std::endl;
+            return EXIT_FAILURE;
+        }
     }
-    VertexDescriptor earth = boost::vertex(d0, g);
-    VertexDescriptor destiny = boost::vertex(d1, g);
+
+    // Find the start node "Erde" and the end node "b3-r7-r4nd7"
+    auto earth = std::make_pair(false, std::numeric_limits<VertexDescriptor>::max());
+    auto destination = std::make_pair(false, std::numeric_limits<VertexDescriptor>::max());
+
+    for(auto node = nodes->begin(); node != nodes->end(); ++node) {
+        std::string label;
+
+        // Get the label of the node
+        try {
+            label = node->second.get_child("label").get_value<std::string>();
+        } catch(const pt::ptree_error& e) {
+            std::cerr << e.what() << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        // Check if it's equal to "Erde" or "b3-r7-r4nd7"
+        if(label == "Erde") {
+            earth.first = true;
+            earth.second = boost::vertex(std::distance(nodes->begin(), node), g);
+        } else if(label == "b3-r7-r4nd7") {
+            destination.first = true;
+            destination.second = boost::vertex(std::distance(nodes->begin(), node), g);
+        }
+
+        // Break loop if "Erde" and "b3-r7-r4nd7" have been found
+        if(earth.first && destination.first) break;
+    }
+
+    // Check if both nodes have been found
+    if(!earth.first || !destination.first) {
+        std::cout << std::boolalpha 
+            << "In dieser Galaxie gibt es einen oder mehreren der gesuchten Planten nicht. Erde[" 
+            << earth.first << "], b3-r7-r4nd7[" 
+            << destination.first << "]" 
+            << std::endl;
+        return EXIT_FAILURE;
+    }
 
     // Run dijkstra's shortest path algorithm
     std::vector<VertexDescriptor> predecessors(boost::num_vertices(g));
     std::vector<double> distances(boost::num_vertices(g));
-    boost::dijkstra_shortest_paths(g, earth, boost::predecessor_map(&predecessors[0]).distance_map(&distances[0]));
+    boost::dijkstra_shortest_paths(g, earth.second, boost::predecessor_map(predecessors.data()).distance_map(distances.data()));
 
-    double totalDistance = distances[destiny];
+    auto totalDistance = distances[destination.second];
 
     // Backtrace and add start vertex
     std::vector<VertexDescriptor> vertices;
     do {
-        vertices.push_back(destiny);
-        destiny = predecessors[destiny];
-    } while(destiny != earth);
-    vertices.push_back(earth);
+        vertices.push_back(destination.second);
+        destination.second = predecessors[destination.second];
+    } while(destination.second != earth.second);
+    vertices.push_back(earth.second);
 
     // Print out vertices in reverse order and total distance
     for(auto vertex = vertices.rbegin(); vertex != vertices.rend(); ++vertex) {
